@@ -20,7 +20,13 @@ class TestKit123
         gemtest_url: nil, rubyver: 'ruby-2.5.1')
 
     @h = templates
-    @project_config = project
+    
+    @project_config = if project =~ /\.txt$/ then
+      project
+    elsif project
+      File.join(localpath, project + '.txt')      
+    end
+    
     @testdata, @debug = testdata, debug
     @localpath, @datapath, @gemtest_url = localpath, datapath, gemtest_url
     @rubyver = rubyver
@@ -109,7 +115,31 @@ end
   def create_standalone()
   end
 
-  def destroy_files()
+  def delete_files(s=nil)
+    
+    filepath = if s =~ /\.txt$/ then
+      project
+    elsif s
+      File.join(@localpath, s + '.txt')      
+    else
+      @project_config
+    end
+    
+    puts 'filepath: ' + filepath.inspect if @debug
+    
+    config = SimpleConfig.new(filepath).to_h
+    
+    proj = config[:project]
+    datafilepath = config[:data_path] + '/' + proj
+    FileUtils.rm_rf datafilepath
+        
+    filepath = config[:local_path] + '/' + proj
+    FileUtils.rm_rf filepath
+    
+    FileUtils.rm File.join(config[:data_path], "#{proj}.rsf")
+    
+    proj + ' test files deleted'
+    
   end
 
   def new_project(project='myproject', classname=nil, save: false)
@@ -150,4 +180,3 @@ EOF
   end
 
 end
-
