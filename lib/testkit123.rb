@@ -4,6 +4,7 @@
 
 require 'rxfhelper'
 require 'fileutils'
+require 'testdata_text'
 require 'simple-config'
 
 
@@ -16,7 +17,7 @@ end
 class TestKit123
 
   def initialize(templates: {testdata: nil, testx: nil}, project: nil, 
-        testdata: nil, debug: false, localpath: nil, datapath: nil, 
+        debug: false, localpath: nil, datapath: nil, 
         gemtest_url: nil, rubyver: 'ruby-2.5.1')
 
     @h = templates
@@ -27,7 +28,7 @@ class TestKit123
       File.join(localpath, project + '.txt')      
     end
     
-    @testdata, @debug = testdata, debug
+    @debug = debug
     @localpath, @datapath, @gemtest_url = localpath, datapath, gemtest_url
     @rubyver = rubyver
 
@@ -112,7 +113,58 @@ end
     "finished processing #{proj}"
   end
   
-  def create_standalone()
+  def create_standalone(n)
+    
+    # use the test number to find the test to copy from the test file
+    
+    config = SimpleConfig.new(@project_config).to_h
+    
+    proj = config[:project]
+    datafilepath = config[:data_path] + '/' + proj
+    test_rbfile = File.join(datafilepath, "test_#{proj}.rb")    
+    
+    ext = config[:testdata_ext][/\.?td$/] ? 'td' : 'xml'
+    testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")
+    puts 'testdata_file: ' + testdata_file.inspect if @debug
+    
+    s = File.read test_rbfile
+    a = s.split(/(?=    test )/)
+    a.shift
+
+    tests = a.map do |x|
+      r = a[0].match(/(?<=['"])(?<test>[^"']+)['"]\s+do\s+\|(?<raw_args>[^\|]+)/)  
+      
+      [r[:test], r[:raw_args].split(/, */)]
+    end
+
+    s2 , filetype = RXFHelper.read testdata_file
+    puts 'filetype: ' + filetype.inspect if @debug
+
+    xml = if s2.lstrip[0] == '<' then
+      s2
+    else
+      TestdataText.parse s2
+    end
+
+    puts 'xml: ' + xml.inspect if @debug
+    
+    doc = Rexle.new(xml)
+    testnode = doc.root.xpath('records//test')[n-1]
+    title = testnode.text('summary/type')
+    i = tests.index tests.assoc(title)
+    
+    testcode = a[i].strip.lines[1..-2].map do |line|
+      line.sub(/^ {6}/,'')
+    end
+
+    args = testnode.xpath('records/input/summary/*').map do |input|
+      "%s = '%s'" % [input.name, input.texts.join.gsub(/'/,"\'")]
+    end
+    
+    puts 'args: ' + args.inspect if @debug
+    
+    "require '#{proj}'\n\n" + args.join("\n") + testcode.join
+
   end
 
   def delete_files(s=nil)
