@@ -128,11 +128,13 @@ end
     puts 'testdata_file: ' + testdata_file.inspect if @debug
     
     s = File.read test_rbfile
+    require_gems = s.scan(/^require +['"]([^'"]+)/).map(&:first)
+        
     a = s.split(/(?=    test )/)
     a.shift
 
     tests = a.map do |x|
-      r = a[0].match(/(?<=['"])(?<test>[^"']+)['"]\s+do\s+\|(?<raw_args>[^\|]+)/)  
+      r = a[0].match(/(?<=['"])(?<test>[^"']+)['"]\s+do\s+\|(?<raw_args>[^\|]+)/)
       
       [r[:test], r[:raw_args].split(/, */)]
     end
@@ -155,15 +157,28 @@ end
     
     testcode = a[i].strip.lines[1..-2].map do |line|
       line.sub(/^ {6}/,'')
-    end
+    end.join
 
     args = testnode.xpath('records/input/summary/*').map do |input|
-      "%s = '%s'" % [input.name, input.texts.join.gsub(/'/,"\'")]
+      "test_%s = '%s'" % [input.name, input.texts.join.gsub(/'/,"\'").strip]
     end
     
-    puts 'args: ' + args.inspect if @debug
+    vars = testnode.xpath('records/input/summary/*').map(&:name)
     
-    "require '#{proj}'\n\n" + args.join("\n") + testcode.join
+    puts 'args: ' + args.inspect if @debug    
+    
+    vars.each do |var|
+      testcode.gsub!(/\b#{var}\b/, 'test_' + var)
+    end
+    
+    puts 'gems: ' + require_gems.inspect if @debug
+    
+    "# Test %d. Type: %s\n# Description: %s\n" \
+        % [n, title, testnode.text('summary/type')] + \
+    "# ----------------------\n\n" + \
+    "require '#{proj}'\n" + require_gems.map {|x| "require '%s'" \
+                                              % x}.join("\n") + "\n\n\n" \
+     + args.join("\n") + testcode
 
   end
 
@@ -191,6 +206,37 @@ end
     FileUtils.rm File.join(config[:data_path], "#{proj}.rsf")
     
     proj + ' test files deleted'
+    
+  end
+  
+  def make_testdata(s)
+    
+    inputs = s.scan(/test_([\w]+) += +['"]([^'"]+)/)\
+        .inject({}){|r,x| r.merge(x.first.to_sym => x.last)}    
+    
+    h = {
+      _test: {
+        summary: {
+          path: '',
+          type: '',
+          description: ''
+        },
+        records: {
+          input: {
+            summary: inputs,
+            records: {}
+          },
+          output: {
+            summary: {result: ''},
+            records: {}
+          }
+        }      
+      }
+    }
+
+    a = RexleBuilder.new(h).to_a
+
+    Rexle.new(a).xml pretty: true
     
   end
 
@@ -232,3 +278,4 @@ EOF
   end
 
 end
+
