@@ -96,7 +96,13 @@ buffer_rb = %{#!/usr/bin/env ruby
 
 # file: test_#{proj}.rb
 
+#require 'timecop'
+
+    
 class Test#{config[:classname]} < Testdata::Base
+  
+  # 2011-07-24 19:52:15
+  #Timecop.freeze(Time.local(2011, 7, 24, 19, 52, 15))
 
   def tests()
 
