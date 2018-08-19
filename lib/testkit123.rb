@@ -135,12 +135,14 @@ end
     ext = config[:testdata_ext][/\.?td$/] ? 'td' : 'xml'
     testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")
     puts 'testdata_file: ' + testdata_file.inspect if @debug
+    puts 'source code filepath: '  + test_rbfile.inspect if @debug
     
     s = File.read(test_rbfile).gsub(/^(  )?end/,'')
     require_gems = s.scan(/^require +['"]([^'"]+)/).map(&:first)
     
-    before_test = s[/(?<=def tests\(\)).*(?=\n    test )/m].lstrip
-        
+    before_test = s[/(?<=def tests\(\)).*/m].split(/    test /)[0].lstrip
+    puts '** before_test: ' + before_test.inspect
+
     a = s.split(/(?=    test )/)
     a.shift
 
@@ -162,13 +164,36 @@ end
     puts 'xml: ' + xml.inspect if @debug
     
     doc = Rexle.new(xml)
-    testnode = doc.root.xpath('records//test')[n-1]
+    puts 'after doc : ' if @debug
+    r = doc.root.xpath('records//test') || doc.root.xpath('records/test')
+    
+    if @debug then
+      puts 'r: ' + r.inspect 
+      puts 'r.length: '  + r.length.inspect
+      puts 'n: ' + n.inspect
+    end
+    
+    testnode = r[n-1]
+    puts 'testnode: ' + testnode.xml.inspect if @debug
+    
     title = testnode.text('summary/type')
     i = tests.index tests.assoc(title)
-    
+        
     testcode = a[i].strip.lines[1..-2].map do |line|
       line.sub(/^ {6}/,'')
     end.join
+    
+    # replace the input variable names with the input variable names defined 
+    # in the testdata file and prefix them with *test_*.
+    
+    input_vars = testnode.xpath('records/input/summary/*/name()')
+    
+    puts 'input_vars: '  + input_vars.inspect
+    puts 'tests[i][1]: '  + tests[i][1].inspect
+    puts 'zip: ' + tests[i][1].zip(input_vars).inspect
+    tests[i][1].zip(input_vars).each do |x|
+      testcode.gsub!(x[0], 'test_' + x[1])
+    end  
 
     args = testnode.xpath('records/input/summary/*').map do |input|
       "test_%s =<<EOF\n%s\nEOF\n" % [input.name, 
@@ -185,12 +210,15 @@ end
     
     puts 'gems: ' + require_gems.inspect if @debug
     
+    codex = testcode.rstrip.lines
+    
     "# Test %d. Type: %s\n# Description: %s\n" \
         % [n, title, testnode.text('summary/type')] + \
     "# --------------------------------------------\n\n" + \
     "require '#{proj}'\n" + require_gems.map {|x| "require '%s'" \
                                               % x}.join("\n") + "\n\n\n" \
-     + before_test.gsub(/^    /,'') + "\n" + args.join("\n") + testcode
+     + before_test.gsub(/^    /,'') + "\n" + args.join("\n") \
+     + codex[0..-2].join + 'puts ' + codex.last
 
   end
 
@@ -290,3 +318,4 @@ EOF
   end
 
 end
+
