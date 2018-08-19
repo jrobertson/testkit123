@@ -20,6 +20,7 @@ class TestKit123
         debug: false, localpath: nil, datapath: nil, 
         gemtest_url: nil, rubyver: 'ruby-2.5.1')
 
+    @debug = debug
     @h = templates
     
     @project_config = if project =~ /\.txt$/ then
@@ -27,8 +28,9 @@ class TestKit123
     elsif project
       File.join(localpath, project + '.txt')      
     end
+    puts '@project_config: ' + @project_config.inspect if @debug
     
-    @debug = debug
+
     @localpath, @datapath, @gemtest_url = localpath, datapath, gemtest_url
     @rubyver = rubyver
 
@@ -126,6 +128,7 @@ end
     config = SimpleConfig.new(@project_config).to_h
     
     proj = config[:project]
+    puts 'create_standalone: proj: ' + proj.inspect if @debug
     datafilepath = config[:data_path] + '/' + proj
     test_rbfile = File.join(datafilepath, "test_#{proj}.rb")    
     
@@ -133,8 +136,10 @@ end
     testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")
     puts 'testdata_file: ' + testdata_file.inspect if @debug
     
-    s = File.read test_rbfile
+    s = File.read(test_rbfile).gsub(/^(  )?end/,'')
     require_gems = s.scan(/^require +['"]([^'"]+)/).map(&:first)
+    
+    before_test = s[/(?<=def tests\(\)).*(?=\n    test )/m].lstrip
         
     a = s.split(/(?=    test )/)
     a.shift
@@ -166,7 +171,8 @@ end
     end.join
 
     args = testnode.xpath('records/input/summary/*').map do |input|
-      "test_%s = '%s'" % [input.name, input.texts.join.gsub(/'/,"\'").strip]
+      "test_%s =<<EOF\n%s\nEOF\n" % [input.name, 
+                                     input.texts.join.gsub(/'/,"\'").strip]
     end
     
     vars = testnode.xpath('records/input/summary/*').map(&:name)
@@ -181,10 +187,10 @@ end
     
     "# Test %d. Type: %s\n# Description: %s\n" \
         % [n, title, testnode.text('summary/type')] + \
-    "# ----------------------\n\n" + \
+    "# --------------------------------------------\n\n" + \
     "require '#{proj}'\n" + require_gems.map {|x| "require '%s'" \
                                               % x}.join("\n") + "\n\n\n" \
-     + args.join("\n") + testcode
+     + before_test.gsub(/^    /,'') + "\n" + args.join("\n") + testcode
 
   end
 
@@ -284,4 +290,3 @@ EOF
   end
 
 end
-
