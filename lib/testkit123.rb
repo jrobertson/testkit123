@@ -8,14 +8,21 @@ require 'testdata_text'
 require 'simple-config'
 
 
-class String
-  def camelize
-    self.split('_').collect(&:capitalize).join 
+module StringFormat
+  
+  refine String do
+    
+    def camelize
+      self.split('_').collect(&:capitalize).join 
+    end
+    
   end
+  
 end
 
 class TestKit123
-
+  using StringFormat
+  
   def initialize(templates: {testdata: nil, testx: nil}, project: nil, 
         debug: false, localpath: nil, datapath: nil, 
         gemtest_url: nil, rubyver: 'ruby-2.5.1')
