@@ -22,6 +22,7 @@ end
 
 class TestKit123
   using StringFormat
+  using ColouredText
   
   def initialize(templates: {testdata: nil, testx: nil}, project: nil, 
         debug: false, localpath: nil, datapath: nil, 
@@ -132,7 +133,8 @@ end
     
     # use the test number to find the test to copy from the test file
     
-    config = SimpleConfig.new(@project_config).to_h
+    config = SimpleConfig.new(@project_config, debug: false).to_h
+    puts ('config: ' + config.inspect).debug if @debug
     
     proj = config[:project]
     puts 'create_standalone: proj: ' + proj.inspect if @debug
@@ -152,9 +154,10 @@ end
 
     a = s.split(/(?=    test )/)
     a.shift
-
+    puts 'a: ' + a.inspect if @debug
+    
     tests = a.map do |x|
-      r = a[0].match(/(?<=['"])(?<test>[^"']+)['"]\s+do\s+\|(?<raw_args>[^\|]+)/)
+      r = x.match(/(?<=['"])(?<test>[^"']+)['"]\s+do\s+\|(?<raw_args>[^\|]+)/)
       
       [r[:test], r[:raw_args].split(/, */)]
     end
@@ -184,7 +187,10 @@ end
     puts 'testnode: ' + testnode.xml.inspect if @debug
     
     title = testnode.text('summary/type')
+    puts ('title: ' + title.inspect).debug if @debug
+    puts ('tests: ' + tests.inspect).debug if @debug
     i = tests.index tests.assoc(title)
+    puts 'i: ' + i.inspect if @debug
         
     testcode = a[i].strip.lines[1..-2].map do |line|
       line.sub(/^ {6}/,'')
@@ -281,7 +287,7 @@ end
       }
     }
 
-    a = RexleBuilder.new(h).to_a
+    a = RexleBuilder.new(h, debug: false).to_a
 
     Rexle.new(a).xml pretty: true
     

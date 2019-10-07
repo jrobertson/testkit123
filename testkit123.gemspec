@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'testkit123'
-  s.version = '0.2.6'
+  s.version = '0.2.7'
   s.summary = 'Generates a test suite of files (for use with the testdata ' + 
       'gem) from a config file.'
   s.authors = ['James Robertson']
