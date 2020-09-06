@@ -24,6 +24,8 @@ class TestKit123
   using StringFormat
   using ColouredText
   
+  attr_reader :testdata_file
+  
   def initialize(templates: {testdata: nil, testx: nil}, project: nil, 
         debug: false, localpath: nil, datapath: nil, 
         gemtest_url: nil, rubyver: 'ruby-2.5.1')
@@ -41,8 +43,48 @@ class TestKit123
 
     @localpath, @datapath, @gemtest_url = localpath, datapath, gemtest_url
     @rubyver = rubyver
+    
+    if File.exists? @project_config then
+      
+      config = SimpleConfig.new(@project_config, debug: false).to_h
+      puts ('config: ' + config.inspect).debug if @debug
+      
+      proj = config[:project]
+      puts 'create_standalone: proj: ' + proj.inspect if @debug
+      
+      raise 'config[:data_path] not found' unless config[:data_path]
+      
+      datafilepath = config[:data_path] + '/' + proj
+      test_rbfile = File.join(datafilepath, "test_#{proj}.rb")    
+      
+      ext = (config[:testdata_ext] and config[:testdata_ext][/\.?td$/]) ? 'td' : 'xml'
+      @testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")      
+      
+    end
 
   end
+
+  # expects a test node; see new_testnode()
+  #
+  def add_test(testnode)    
+    
+    s2 , filetype = RXFHelper.read @testdata_file
+    puts 'filetype: ' + filetype.inspect if @debug
+
+    xml = if s2.lstrip[0] == '<' then
+      s2
+    else
+      TestdataText.parse s2
+    end
+
+    puts 'xml: ' + xml.inspect if @debug
+    
+    doc = Rexle.new(xml)
+    id = doc.root.xpath('records/test/summary/path/text()').last.to_i + 1
+    testnode.root.element('summary/path').text = id.to_s
+    doc.root.element('records').add testnode
+    return doc
+  end  
 
   def create_files(project=@project_config)
 
@@ -138,10 +180,13 @@ end
     
     proj = config[:project]
     puts 'create_standalone: proj: ' + proj.inspect if @debug
+    
+    raise 'config[:data_path] not found' unless config[:data_path]
+    
     datafilepath = config[:data_path] + '/' + proj
     test_rbfile = File.join(datafilepath, "test_#{proj}.rb")    
     
-    ext = config[:testdata_ext][/\.?td$/] ? 'td' : 'xml'
+    ext = (config[:testdata_ext] and config[:testdata_ext][/\.?td$/]) ? 'td' : 'xml'
     testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")
     puts 'testdata_file: ' + testdata_file.inspect if @debug
     puts 'source code filepath: '  + test_rbfile.inspect if @debug
@@ -205,7 +250,7 @@ end
     puts 'tests[i][1]: '  + tests[i][1].inspect
     puts 'zip: ' + tests[i][1].zip(input_vars).inspect
     tests[i][1].zip(input_vars).each do |x|
-      testcode.gsub!(x[0], 'test_' + x[1])
+      testcode.gsub!(/\b#{x[0]}\b/, 'test_' + x[1])
     end  
 
     args = testnode.xpath('records/input/summary/*').map do |input|
@@ -262,16 +307,24 @@ end
     
   end
   
-  def make_testdata(s)
+  def new_testnode(s=nil, type: '', inputs: {}, outputs: {result: ''})
     
-    inputs = s.scan(/test_([\w]+) += +['"]([^'"]+)/)\
-        .inject({}){|r,x| r.merge(x.first.to_sym => x.last)}    
+    if s then
+      
+      # the scan is intended to find the input variables from an 
+      # example Ruby script
+      
+      inputs = s.scan(/test_([\w]+) += +['"]([^'"]+)/)\
+          .inject({}){|r,x| r.merge(x.first.to_sym => x.last)}    
+    end
+    
+    # observe *test* is masked with *_test* because it is a built-in method name.
     
     h = {
       _test: {
         summary: {
           path: '',
-          type: '',
+          type: type,
           description: ''
         },
         records: {
@@ -280,7 +333,7 @@ end
             records: {}
           },
           output: {
-            summary: {result: ''},
+            summary: outputs,
             records: {}
           }
         }      
@@ -289,7 +342,7 @@ end
 
     a = RexleBuilder.new(h, debug: false).to_a
 
-    Rexle.new(a).xml pretty: true
+    Rexle.new(a)
     
   end
 
