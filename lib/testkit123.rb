@@ -27,23 +27,28 @@ class TestKit123
   attr_reader :testdata_file
   
   def initialize(templates: {testdata: nil, testx: nil}, project: nil, 
-        debug: false, localpath: nil, datapath: nil, 
+        debug: true, localpath: nil, datapath: nil, 
         gemtest_url: nil, rubyver: 'ruby-2.5.1')
 
     @debug = debug
     @h = templates
     
+    #return unless project
+    
+    @localpath, @datapath, @gemtest_url = localpath, datapath, gemtest_url
+    @rubyver = rubyver    
+    
+    return unless project
+    
     @project_config = if project =~ /\.txt$/ then
       project
-    elsif project
+    else
       File.join(localpath, project + '.txt')      
     end
-    puts '@project_config: ' + @project_config.inspect if @debug
     
-
-    @localpath, @datapath, @gemtest_url = localpath, datapath, gemtest_url
-    @rubyver = rubyver
-    
+    puts '@project_config: ' + @project_config.inspect if @debug   
+    puts 'localpath: ' + localpath.inspect if @debug
+        
     if File.exists? @project_config then
       
       config = SimpleConfig.new(@project_config, debug: false).to_h
@@ -348,6 +353,7 @@ end
 
   def new_project(project='myproject', classname=nil, save: false)
 
+    puts 'inside new_project: ' + [project, classname].inspect if @debug
     classname ||= project.camelize
 
 s =<<EOF
@@ -370,8 +376,8 @@ test:
   end
 EOF
 
-
     if save then
+      puts '@localpath: ' + @localpath.inspect if @debug
       filepath = File.join(@localpath, project + '.txt')
       File.write filepath, s
       puts 'file saved ' + filepath if @debug
