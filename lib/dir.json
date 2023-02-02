@@ -1,0 +1,29 @@
+{
+  "directory": {
+    "summary": {
+      "schema": "directory[title, file_path,  last_modified, description]/file(name, type, ext, mtime, description)",
+      "recordx_type": "dynarex",
+      "default_key": "name",
+      "title": "Index of /home/james/gem_src/testkit123/lib",
+      "file_path": "/home/james/gem_src/testkit123/lib",
+      "last_modified": "2022-03-06 12:10:38 +0000",
+      "description": null
+    },
+    "records": [
+      {
+        "file": {
+          "id": "1",
+          "created": "2022-03-06 12:10:38 +0000",
+          "last_modified": null,
+          "body": {
+            "name": "testkit123.rb",
+            "type": "file",
+            "ext": ".rb",
+            "mtime": "2022-02-21 15:22:08 +0000",
+            "description": ""
+          }
+        }
+      }
+    ]
+  }
+}

@@ -9,70 +9,70 @@ require 'rxfreadwrite'
 
 
 module StringFormat
-
+  
   refine String do
-
+    
     def camelize
-      self.split('_').collect(&:capitalize).join
+      self.split('_').collect(&:capitalize).join 
     end
-
+    
   end
-
+  
 end
 
 class TestKit123
   using StringFormat
   using ColouredText
-
+  
   attr_reader :testdata_file
-
-  def initialize(templates: {testdata: nil, testx: nil}, project: nil,
-        debug: true, localpath: nil, datapath: nil,
+  
+  def initialize(templates: {testdata: nil, testx: nil}, project: nil, 
+        debug: true, localpath: nil, datapath: nil, 
         gemtest_url: nil, rubyver: 'ruby-2.5.1')
 
     @debug = debug
     @h = templates
-
+    
     #return unless project
-
+    
     @localpath, @datapath, @gemtest_url = localpath, datapath, gemtest_url
-    @rubyver = rubyver
-
+    @rubyver = rubyver    
+    
     return unless project
-
+    
     @project_config = if project =~ /\.txt$/ then
       project
     else
-      File.join(localpath, project + '.txt')
+      File.join(localpath, project + '.txt')      
     end
-
-    puts '@project_config: ' + @project_config.inspect if @debug
+    
+    puts '@project_config: ' + @project_config.inspect if @debug   
     puts 'localpath: ' + localpath.inspect if @debug
-
-    if File.exists? @project_config then
-
+        
+    if File.exist? @project_config then
+      
       config = SimpleConfig.new(@project_config, debug: false).to_h
       puts ('config: ' + config.inspect).debug if @debug
-
+      
       proj = config[:project]
       puts 'create_standalone: proj: ' + proj.inspect if @debug
-
+      
       raise 'config[:data_path] not found' unless config[:data_path]
-
+      
       datafilepath = config[:data_path] + '/' + proj
-      test_rbfile = File.join(datafilepath, "test_#{proj}.rb")
-
+      test_rbfile = File.join(datafilepath, "test_#{proj}.rb")    
+      
       ext = (config[:testdata_ext] and config[:testdata_ext][/\.?td$/]) ? 'td' : 'xml'
-      @testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")
-
+      @testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")      
+      
     end
 
   end
 
   # expects a test node; see new_testnode()
   #
-  def add_test(testnode)
-
+  def add_test(testnode)    
+    
     s2 , filetype = RXFReader.read @testdata_file
     puts 'filetype: ' + filetype.inspect if @debug
 
@@ -83,13 +83,13 @@ class TestKit123
     end
 
     puts 'xml: ' + xml.inspect if @debug
-
+    
     doc = Rexle.new(xml)
     id = doc.root.xpath('records/test/summary/path/text()').last.to_i + 1
     testnode.root.element('summary/path').text = id.to_s
     doc.root.element('records').add testnode
     return doc
-  end
+  end  
 
   def create_files(project=@project_config)
 
@@ -97,12 +97,12 @@ class TestKit123
 
     puts '1) Reading the config file' if @debug
     raise "missing the config file " unless @project_config
-    raise "config file not found" unless File.exists? @project_config
+    raise "config file not found" unless File.exist? @project_config
 
     config_file = @project_config
-
+    
     puts 'config_file: ' + config_file.inspect if @debug
-
+    
     config = SimpleConfig.new(config_file).to_h
     puts 'config : ' + config.inspect if @debug
 
@@ -137,17 +137,17 @@ class TestKit123
     testdata = @h[:testdata].gsub(/(?<=\.)\w+$/, ext)
     puts 'testdata: ' + testdata.inspect if @debug
     buffer_testdata, _ = RXFReader.read(testdata)
-
+    
     FileUtils.mkdir_p datafilepath
-
+    
     testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")
-    File.write testdata_file, eval('%{' + buffer_testdata + '}')
+    File.write testdata_file, eval('%{' + buffer_testdata + '}') 
 
     test_template_rsf = @h[:testx]
     buffer_test, _ = RXFReader.read(test_template_rsf)
 
     test_rsffile = File.join(config[:data_path], "#{proj}.rsf")
-    File.write test_rsffile, eval('%{' + buffer_test + '}')
+    File.write test_rsffile, eval('%{' + buffer_test + '}') 
 
 buffer_rb = %{#!/usr/bin/env ruby
 
@@ -155,9 +155,9 @@ buffer_rb = %{#!/usr/bin/env ruby
 
 #require 'timecop'
 
-
+    
 class Test#{config[:classname]} < Testdata::Base
-
+  
   # 2011-07-24 19:52:15
   #Timecop.freeze(Time.local(2011, 7, 24, 19, 52, 15))
 
@@ -171,45 +171,45 @@ end
 
     test_rbfile = File.join(datafilepath, "test_#{proj}.rb")
     puts 'reading the ruby template file ...' if @debug
-    File.write test_rbfile, eval('%{' + buffer_rb + '}')
+    File.write test_rbfile, eval('%{' + buffer_rb + '}') 
 
     "finished processing #{proj}"
   end
-
+  
   def create_standalone(n)
-
+    
     # use the test number to find the test to copy from the test file
     puts '@project_config: ' + @project_config.inspect
 
     config = SimpleConfig.new(@project_config, debug: false).to_h
     puts ('config: ' + config.inspect).debug if @debug
-
+    
     proj = config[:project]
     puts 'create_standalone: proj: ' + proj.inspect if @debug
-
+    
     raise 'config[:data_path] not found' unless config[:data_path]
-
+    
     datafilepath = config[:data_path] + '/' + proj
-    test_rbfile = File.join(datafilepath, "test_#{proj}.rb")
-
+    test_rbfile = File.join(datafilepath, "test_#{proj}.rb")    
+    
     ext = (config[:testdata_ext] and config[:testdata_ext][/\.?td$/]) ? 'td' : 'xml'
     testdata_file = File.join(datafilepath, "testdata_#{proj}.#{ext}")
     puts 'testdata_file: ' + testdata_file.inspect if @debug
     puts 'source code filepath: '  + test_rbfile.inspect if @debug
-
+    
     s = File.read(test_rbfile).gsub(/^(  )?end/,'')
     require_gems = s.scan(/^require +['"]([^'"]+)/).map(&:first)
-
+    
     before_test = s[/(?<=def tests\(\)).*/m].split(/    test /)[0].lstrip
     puts '** before_test: ' + before_test.inspect
 
     a = s.split(/(?=    test )/)
     a.shift
     puts 'a: ' + a.inspect if @debug
-
+    
     tests = a.map do |x|
       r = x.match(/(?<=['"])(?<test>[^"']+)['"]\s+do\s+\|(?<raw_args>[^\|]+)/)
-
+      
       [r[:test], r[:raw_args].split(/, */)]
     end
 
@@ -223,35 +223,35 @@ end
     end
 
     puts 'xml: ' + xml.inspect if @debug
-
+    
     doc = Rexle.new(xml)
     puts 'after doc : ' if @debug
     r = doc.root.xpath('records//test') || doc.root.xpath('records/test')
-
+    
     if @debug then
-      puts 'r: ' + r.inspect
+      puts 'r: ' + r.inspect 
       puts 'r.length: '  + r.length.inspect
       puts 'n: ' + n.inspect
     end
-
+    
     testnode = r[n-1]
     puts 'testnode: ' + testnode.xml.inspect if @debug
-
+    
     title = testnode.text('summary/type')
     puts ('title: ' + title.inspect).debug if @debug
     puts ('tests: ' + tests.inspect).debug if @debug
     i = tests.index tests.assoc(title)
     puts 'i: ' + i.inspect if @debug
-
+        
     testcode = a[i].strip.lines[1..-2].map do |line|
       line.sub(/^ {6}/,'')
     end.join
-
-    # replace the input variable names with the input variable names defined
+    
+    # replace the input variable names with the input variable names defined 
     # in the testdata file and prefix them with *test_*.
-
+    
     input_vars = testnode.xpath('records/input/summary/*/name()')
-
+    
     if @debug then
       puts 'input_vars: '  + input_vars.inspect
       puts 'tests[i][1]: '  + tests[i][1].inspect
@@ -260,7 +260,7 @@ end
 
     tests[i][1].zip(input_vars).each do |x|
       testcode.gsub!(/\b#{x[0]}\b/, 'test_' + x[1])
-    end
+    end  
 
     args = testnode.xpath('records/input/summary/*').map do |input|
 
@@ -273,19 +273,19 @@ end
       end
 
     end
-
+    
     vars = testnode.xpath('records/input/summary/*').map(&:name)
-
-    puts 'args: ' + args.inspect if @debug
-
+    
+    puts 'args: ' + args.inspect if @debug    
+    
     vars.each do |var|
-      testcode.gsub!(/\b#{var}\b/, 'test_' + var)
+      testcode.gsub!(/\b#{var}[^:]\b/, 'test_' + var)
     end
-
+    
     puts 'gems: ' + require_gems.inspect if @debug
-
+    
     codex = testcode.rstrip.lines
-
+    
     "# Test %d. Type: %s\n# Description: %s\n" \
         % [n, title, testnode.text('summary/type')] + \
     "# --------------------------------------------\n\n" + \
@@ -298,45 +298,45 @@ end
   end
 
   def delete_files(s=nil)
-
+    
     filepath = if s =~ /\.txt$/ then
       project
     elsif s
-      File.join(@localpath, s + '.txt')
+      File.join(@localpath, s + '.txt')      
     else
       @project_config
     end
-
+    
     puts 'filepath: ' + filepath.inspect if @debug
-
+    
     config = SimpleConfig.new(filepath).to_h
-
+    
     proj = config[:project]
     datafilepath = config[:data_path] + '/' + proj
     FileUtils.rm_rf datafilepath
-
+        
     filepath = config[:local_path] + '/' + proj
     FileUtils.rm_rf filepath
-
+    
     FileUtils.rm File.join(config[:data_path], "#{proj}.rsf")
-
+    
     proj + ' test files deleted'
-
+    
   end
-
+  
   def new_testnode(s=nil, type: '', inputs: {}, outputs: {result: ''})
-
+    
     if s then
-
-      # the scan is intended to find the input variables from an
+      
+      # the scan is intended to find the input variables from an 
       # example Ruby script
-
+      
       inputs = s.scan(/test_([\w]+) += +['"]([^'"]+)/)\
-          .inject({}){|r,x| r.merge(x.first.to_sym => x.last)}
+          .inject({}){|r,x| r.merge(x.first.to_sym => x.last)}    
     end
-
+    
     # observe *test* is masked with *_test* because it is a built-in method name.
-
+    
     h = {
       _test: {
         summary: {
@@ -353,14 +353,14 @@ end
             summary: outputs,
             records: {}
           }
-        }
+        }      
       }
     }
 
     a = RexleBuilder.new(h, debug: false).to_a
 
     Rexle.new(a)
-
+    
   end
 
   def new_project(project='myproject', classname=nil, save: false)
